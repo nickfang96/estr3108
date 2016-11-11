@@ -13,18 +13,26 @@ sh_w2 = [4,segement,out1,out2]
 lastneuron = 1024
 poolsize = 10
 lastsize = length/(poolsize*poolsize)
-savername = './37.ckpt'
+savername = './result/estr3108/37.ckpt'
 
 def getdata(num,sess,feature,labels):
     ydata = list()
     examples = list()
     for j in range(num/100):
-        e, label = sess.run([feature, labels])
-        e = [map(float,list(e[i])) for i in range(100)]
+        data, label = sess.run([feature, labels])
+        data = [list(data[i]) for i in range(100)]
+        data = np.array(data)
+        e = np.zeros((100,4,length),dtype='float32')
+        for i in range(100):
+            d = data[i]
+            e[i][0][d=='1'] = 1.0
+            e[i][1][d=='2'] = 1.0
+            e[i][2][d=='3'] = 1.0
+            e[i][3][d=='4'] = 1.0
         examples.append(e)
         ylab = np.zeros((100,types),dtype='float32')
         for i in range(100):
-            ylab[i][int(label[i])] = 1.0
+            ylab[i][int(label[i])==0] = 1.0
         ydata.append(ylab)
     xdata = np.reshape(examples,(num,4,length))
     ydata = np.reshape(ydata,(num,types))
@@ -48,7 +56,7 @@ def maxpool(x):
     import data
 '''
 directory = "./*.csv"
-filename = "./result/result.csv"
+filename = "./result/estr3108/result.csv"
 csvfile = file(filename,'wb')
 writer = csv.writer(csvfile)
 filename_queue = tf.train.string_input_producer(
@@ -58,8 +66,8 @@ line_reader = tf.TextLineReader(skip_header_lines=1)
 _, csv_row = line_reader.read(filename_queue)
 
 record_defaults = [[0],[""]]
-min = 1000
-capacity = min+3*100
+min = 5000
+capacity = min+5*100
 labelnn,featuress = tf.decode_csv(csv_row, record_defaults=record_defaults)
 labeln,features = tf.train.shuffle_batch([labelnn,featuress], batch_size = 100,min_after_dequeue = min, capacity = capacity)
 '''
@@ -105,21 +113,24 @@ sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(coord=coord)
-for i in range(1,6001):
+xd,yd = getdata(5000,sess,features,labeln)
+for i in range(1,5501):
     #train
     xdata,ydata = getdata(100,sess,features,labeln)
     if(i%100==0):
-        result = sess.run(accuracy, feed_dict={x: xdata,y_: ydata,keep_prob:1.0})
+        result = sess.run(accuracy,feed_dict={x: xdata,y_: ydata,keep_prob:1.0})
+	r = sess.run(accuracy,feed_dict={x:xd,y_:yd,keep_prob:1.0})
         print "step ",
         print i,
         print " accuracy = ",
-        print result
-        writer.writerow([i,result])
+        print result,
+	print " ",
+	print r
+        writer.writerow([i,result,r])
     sess.run(train_step,feed_dict={x:xdata,y_:ydata,keep_prob:0.5})
 #Final test cases
-xdata,ydata = getdata(1000,sess,features,labeln)
 print "Final: ",
-print(sess.run(accuracy, feed_dict={x: xdata,y_: ydata,keep_prob:1.0}))
+print(sess.run(accuracy, feed_dict={x: xd,y_: yd,keep_prob:1.0}))
 saver = tf.train.Saver()
 saver.save(sess,savername,global_step=1)
 coord.request_stop()
