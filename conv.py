@@ -113,20 +113,31 @@ sess = tf.InteractiveSession()
 tf.initialize_all_variables().run()
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(coord=coord)
-xd,yd = getdata(5000,sess,features,labeln)
+xd = list()
+yd = list()
 for i in range(1,5501):
     #train
     xdata,ydata = getdata(100,sess,features,labeln)
     if(i%100==0):
         result = sess.run(accuracy,feed_dict={x: xdata,y_: ydata,keep_prob:1.0})
-	r = sess.run(accuracy,feed_dict={x:xd,y_:yd,keep_prob:1.0})
         print "step ",
         print i,
         print " accuracy = ",
-        print result,
-	print " ",
-	print r
-        writer.writerow([i,result,r])
+        print result
+	if(i/100<5):
+		xdl,ydl = getdata(1000,sess,features,labeln)
+		xd.append(xdl)
+		yd.append(ydl)
+	elif(i/100==5):
+		xdl,ydl = getdata(1000,sess,features,labeln)
+		xd.append(xdl)
+		yd.append(ydl)
+		xd = np.reshape(xd,(5000,4,length))
+		yd = yd.reshape(yd,(5000,types))
+	else:
+		r = sess.run(accuracy,feed_dict={x:xd,y_:yd,keep_prob:1.0})
+		print r
+        	writer.writerow([i,result,r])
     sess.run(train_step,feed_dict={x:xdata,y_:ydata,keep_prob:0.5})
 #Final test cases
 print "Final: ",
